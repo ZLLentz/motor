@@ -18,6 +18,9 @@ include $(TOP)/configure/CONFIG
 DB += motor.db
 DB += basic_motor.db
 DB += basic_asyn_motor.db
+DB += EthercatMC.template
+DB += EthercatMCdebug.template
+DB += EthercatMChome.template
 DB += IMS_extra.db
 DB += XPSAuxAi.db
 DB += XPSAuxAo.db
