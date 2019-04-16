@@ -122,6 +122,9 @@ asynStatus EthercatMCAxis::handleDisconnect()
   return status;
 }
 
+/** Reads a configuration file to do ADS writes on startup
+ * Only runs if option passed in on create axis
+ */
 asynStatus EthercatMCAxis::readConfigFile(void)
 {
   const char *setRaw_str = "setRaw ";
@@ -251,11 +254,15 @@ asynStatus EthercatMCAxis::readConfigFile(void)
   return asynSuccess;
 }
 
-/** Connection status is changed, the dirty bits must be set and
- *  the values in the controller must be updated
- * \param[in] AsynStatus status
- *
- * Sets the dirty bits
+/** Read configured parameters in NC to put into extra records
+ * Scaling denominator -> EthercatMCScalSREV_RB_
+ * Scaling numerator -> EthercatMCScalUREV_RB_
+ * Reference Velocity -> EthercatMCScalNUM_RB_
+ * Drive Polarity -> EthercatMCScalMDIR_RB_
+ * Encoder Polarity -> EthercatMCScalEDIR_RB_
+ * Target Position Window -> EthercatMCScalRDBD_RB_
+ * Target Position Time -> EthercatMCScalRDBD_Tim_RB_
+ * Target Position Ena -> EthercatMCScalRDBD_En_RB_
  */
 void EthercatMCAxis::readBackConfig(void)
 {
@@ -335,11 +342,9 @@ void EthercatMCAxis::readBackConfig(void)
                                              iValue);
 }
 
-/** Connection status is changed, the dirty bits must be set and
- *  the values in the controller must be updated
- * \param[in] AsynStatus status
- *
- * Sets the dirty bits
+/** Does the first update of Axis config
+ * Also turns on the amplifier if we asked for this by
+ * passing the correct flag to create axis
  */
 asynStatus EthercatMCAxis::initialUpdate(void)
 {
@@ -391,7 +396,7 @@ void EthercatMCAxis::report(FILE *fp, int level)
  * Indata is in pC_->inString_
  * The communiction is logged ASYN_TRACE_INFO
  *
- * When the communictaion fails ot times out, writeReadOnErrorDisconnect() is called
+ * When the communictaion fails or times out, writeReadOnErrorDisconnect() is called
  */
 asynStatus EthercatMCAxis::writeReadACK(void)
 {
@@ -540,6 +545,9 @@ asynStatus EthercatMCAxis::setValuesOnAxis(const char* var1, double value1,
 }
 
 
+/** Get and store the internal ID of this axis
+ * Called on first update and as needed
+ */
 int EthercatMCAxis::getMotionAxisID(void)
 {
   int ret = drvlocal.dirty.nMotionAxisID;
@@ -556,6 +564,10 @@ int EthercatMCAxis::getMotionAxisID(void)
   return ret;
 }
 
+/** Set values by index and offset
+ * This and the following are used when we need to write to the NC port
+ * https://infosys.beckhoff.com/english.php?content=../content/1033/tcadsdevicenc2/index.html&id=
+ */
 asynStatus EthercatMCAxis::setADRValueOnAxis(unsigned adsport,
                                         unsigned indexGroup,
                                         unsigned indexOffset,
@@ -628,6 +640,10 @@ asynStatus EthercatMCAxis::setADRValueOnAxisVerify(unsigned adsport,
   return status;
 }
 
+/** Get values by index and offset
+ * This and the following are used when we need to read from the NC port
+ * https://infosys.beckhoff.com/english.php?content=../content/1033/tcadsdevicenc2/index.html&id=
+ */
 asynStatus EthercatMCAxis::getADRValueFromAxis(unsigned adsport,
                                           unsigned indexGroup,
                                           unsigned indexOffset,
@@ -760,6 +776,8 @@ asynStatus EthercatMCAxis::getStringFromAxis(const char *var, char *value, size_
   return asynSuccess;
 }
 
+/** Get an arbitrary value from the PLC program
+ */
 asynStatus EthercatMCAxis::getValueFromController(const char* var, double *value)
 {
   asynStatus comStatus;
@@ -780,7 +798,7 @@ asynStatus EthercatMCAxis::getValueFromController(const char* var, double *value
   return asynSuccess;
 }
 
-/** Set velocity and acceleration for the axis
+/** Set velocity and acceleration for the axis, then execute last queued command. This may cause a move.
  * \param[in] maxVelocity, mm/sec
  * \param[in] acceleration ???
  *
@@ -933,7 +951,7 @@ asynStatus EthercatMCAxis::setPosition(double value)
 }
 
 /** Set the low soft-limit on an axis
- *
+ * Note that this changes the NC's soft limit parameters
  */
 asynStatus EthercatMCAxis::setMotorLimitsOnAxisIfDefined(void)
 {
@@ -1015,7 +1033,7 @@ asynStatus EthercatMCAxis::resetAxis(void)
   return status;
 }
 
-/** Enable the amplifier on an axis
+/** Enable or disable the amplifier on an axis
  *
  */
 asynStatus EthercatMCAxis::enableAmplifier(int on)
